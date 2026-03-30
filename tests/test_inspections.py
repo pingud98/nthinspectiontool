@@ -1,0 +1,141 @@
+"""
+Unit tests for inspection CRUD operations.
+"""
+import pytest
+from datetime import date
+from app import db
+from app.models import Inspection, ConclusionStatus, ActionRequired, User, Photo
+
+
+def test_create_inspection(auth_client, test_user, app):
+    """Test creating a new inspection."""
+    response = auth_client.post('/inspections/new', data={
+        'installation_name': 'Test Installation',
+        'location': 'Test Location',
+        'inspection_date': '2026-01-01',
+        'reference_number': '54321',
+        'observations': 'Test observations',
+        'conclusion_text': 'Test conclusion',
+        'conclusion_status': ConclusionStatus.OK.value,
+        'submit': 'Submit'
+    }, follow_redirects=True)
+    
+    assert response.status_code == 200
+    assert b'Inspection report created successfully' in response.data
+    
+    # Verify inspection was created in database
+    with app.app_context():
+        user = User.query.get(test_user)
+        inspection = Inspection.query.filter_by(reference_number=54321).first()
+        assert inspection is not None
+        assert inspection.installation_name == 'Test Installation'
+        assert inspection.location == 'Test Location'
+        assert inspection.created_by == user.id
+
+
+def test_view_inspection(auth_client, test_user, app):
+    """Test viewing an inspection."""
+    with app.app_context():
+        # Get the user object from the ID
+        user = User.query.get(test_user)
+        # Create an inspection first
+        inspection = Inspection(
+            installation_name='Test Installation',
+            location='Test Location',
+            inspection_date=date(2026, 1, 1),
+            reference_number='99999',
+            observations='Test observations',
+            conclusion_text='Test conclusion',
+            conclusion_status=ConclusionStatus.OK,
+            created_by=user.id
+        )
+        db.session.add(inspection)
+        db.session.commit()
+    
+    # View the inspection
+    response = auth_client.get(f'/inspections/{inspection.id}')
+    assert response.status_code == 200
+    assert b'Test Installation' in response.data
+    assert b'Test Location' in response.data
+    assert b'99999' in response.data
+
+
+def test_edit_inspection(auth_client, test_user, app):
+    """Test editing an inspection."""
+    with app.app_context():
+        # Get the user object from the ID
+        user = User.query.get(test_user)
+        # Create an inspection first
+        inspection = Inspection(
+            installation_name='Original Installation',
+            location='Original Location',
+            inspection_date=date(2026, 1, 1),
+            reference_number='11111',
+            observations='Original observations',
+            conclusion_text='Original conclusion',
+            conclusion_status=ConclusionStatus.OK,
+            created_by=user.id
+        )
+        db.session.add(inspection)
+        db.session.commit()
+    
+    # Edit the inspection
+    response = auth_client.post(f'/inspections/{inspection.id}/edit', data={
+        'installation_name': 'Edited Installation',
+        'location': 'Edited Location',
+        'inspection_date': '2026-01-02',
+        'reference_number': '22222',
+        'observations': 'Edited observations',
+        'conclusion_text': 'Edited conclusion',
+        'conclusion_status': ConclusionStatus.MINOR.value,
+        'submit': 'Submit'
+    }, follow_redirects=True)
+    
+    assert response.status_code == 200
+    assert b'Inspection report updated successfully' in response.data
+    
+    # Verify changes were saved
+    inspection = Inspection.query.get(inspection.id)  # Refetch to avoid detachment issues
+    assert inspection.installation_name == 'Edited Installation'
+    assert inspection.location == 'Edited Location'
+    assert inspection.reference_number == 22222
+    assert inspection.observations == 'Edited observations'
+    assert inspection.conclusion_text == 'Edited conclusion'
+    assert inspection.conclusion_status == ConclusionStatus.MINOR
+    assert inspection.version == 2  # Version should be incremented
+
+
+def test_inspection_version_increment(auth_client, test_user, app):
+    """Test that inspection version increments on update."""
+    with app.app_context():
+        # Get the user object from the ID
+        user = User.query.get(test_user)
+        inspection = Inspection(
+            installation_name='Test Installation',
+            location='Test Location',
+            inspection_date='2026-01-01',
+            reference_number='33333',
+            observations='Test observations',
+            conclusion_text='Test conclusion',
+            conclusion_status=ConclusionStatus.OK,
+            created_by=user.id
+        )
+        db.session.add(inspection)
+        db.session.commit()
+    
+    assert inspection.version == 1
+    
+    # Update the inspection
+    auth_client.post(f'/inspections/{inspection.id}/edit', data={
+        'installation_name': 'Updated Installation',
+        'location': 'Test Location',  # Keep same location
+        'inspection_date': '2026-01-01',
+        'reference_number': '33333',  # Keep same reference number
+        'observations': 'Updated observations',
+        'conclusion_text': 'Updated conclusion',
+        'conclusion_status': ConclusionStatus.OK.value,
+        'submit': 'Submit'
+    })
+    
+    inspection = Inspection.query.get(inspection.id)  # Refetch to avoid detachment issues
+    assert inspection.version == 2

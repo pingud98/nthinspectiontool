@@ -1,0 +1,268 @@
+{% extends "base.html" %}
+
+{% block title %}{{ title }} - Inspection Reporting{% endblock %}
+
+{% block content %}
+<div class="max-w-4xl mx-auto bg-white rounded-lg shadow-md overflow-hidden">
+    <div class="px-6 py-8">
+        <h1 class="text-2xl font-bold text-center mb-6 text-gray-800">{{ title }}</h1>
+        <form method="POST" action="" enctype="multipart/form-data" id="inspection-form">
+            {{ form.hidden_tag() }}
+            
+            <!-- Basic Information -->
+            <div class="mb-6">
+                <label for="{{ form.installation_name.id }}" class="block text-sm font-medium text-gray-700 mb-2">Installation Name</label>
+                {{ form.installation_name(class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent") }}
+                {% if form.installation_name.errors %}
+                    <span class="text-red-500 text-sm">{{ form.installation_name.errors[0] }}</span>
+                {% endif %}
+            </div>
+            
+            <div class="mb-6">
+                <label for="{{ form.location.id }}" class="block text-sm font-medium text-gray-700 mb-2">Location</label>
+                {{ form.location(class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent") }}
+                {% if form.location.errors %}
+                    <span class="text-red-500 text-sm">{{ form.location.errors[0] }}</span>
+                {% endif %}
+            </div>
+            
+            <div class="mb-6">
+                <label for="{{ form.inspection_date.id }}" class="block text-sm font-medium text-gray-700 mb-2">Date of Inspection</label>
+                {{ form.inspection_date(class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent") }}
+                {% if form.inspection_date.errors %}
+                    <span class="text-red-500 text-sm">{{ form.inspection_date.errors[0] }}</span>
+                {% endif %}
+            </div>
+            
+            <div class="mb-6">
+                <label for="{{ form.reference_number.id }}" class="block text-sm font-medium text-gray-700 mb-2">Reference Number</label>
+                {{ form.reference_number(class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent") }}
+                {% if form.reference_number.errors %}
+                    <span class="text-red-500 text-sm">{{ form.reference_number.errors[0] }}</span>
+                {% endif %}
+            </div>
+            
+            <!-- Inspectors -->
+            <div class="mb-6">
+                <h2 class="text-xl font-bold mb-4">Inspectors</h2>
+                <div id="inspectors-container">
+                    {% for inspector_form in form.inspectors %}
+                    <div class="inspector-entry flex flex-col md:flex-row md:items-start md:space-x-4 mb-4 p-4 border border-gray-200 rounded-lg">
+                        <div class="md:w-1/2">
+                            <label for="{{ inspector_form.user_id.id }}" class="block text-sm font-medium text-gray-700 mb-2">Registered User</label>
+                            {{ inspector_form.user_id(class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 focus-border-transparent") }}
+                            {% if inspector_form.user_id.errors %}
+                                <span class="text-red-500 text-sm">{{ inspector_form.user_id.errors[0] }}</span>
+                            {% endif %}
+                        </div>
+                        <div class="md:w-1/2">
+                            <label for="{{ inspector_form.free_text_name.id }}" class="block text-sm font-medium text-gray-700 mb-2">Free-text Name (for external individuals)</label>
+                            {{ inspector_form.free_text_name(class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent") }}
+                            {% if inspector_form.free_text_name.errors %}
+                                <span class="text-red-500 text-sm">{{ inspector_form.free_text_name.errors[0] }}</span>
+                            {% endif %}
+                        </div>
+                        <div class="md:w-auto mt-8 md:mt-0">
+                            <button type="button" class="btn btn-error btn-remove-inspector">Remove</button>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+                <button type="button" id="add-inspector" class="btn btn-primary mb-4">Add Inspector</button>
+            </div>
+            
+            <!-- Observations -->
+            <div class="mb-6">
+                <label for="{{ form.observations.id }}" class="block text-sm font-medium text-gray-700 mb-2">Observations</label>
+                {{ form.observations(class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent h-32") }}
+                {% if form.observations.errors %}
+                    <span class="text-red-500 text-sm">{{ form.observations.errors[0] }}</span>
+                {% endif %}
+            </div>
+            
+           <!-- Photos -->
+            <div class="mb-6">
+                <h2 class="text-xl font-bold mb-4">Photos</h2>
+                <div id="photos-container">
+                    {% for photo_form in form.photos %}
+                    <div class="photo-entry flex flex-col md:flex-row md:items-start md:space-x-4 mb-4 p-4 border border-gray-200 rounded-lg">
+                        <div class="md:w-1/3">
+                            <label class="block text-sm font-medium text-gray-700 mb-2">Photo Upload</label>
+                            <input type="file" name="photos-{{ loop.index0 }}-file" accept="image/*" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent" onchange="previewImage(this, {{ loop.index0 }})">
+                            <div id="photo-preview-{{ loop.index0 }}" class="mt-2">
+                                 {% if inspection is defined and loop.index0 < inspection.photos|length %}
+                                     {% set existing_photo = inspection.photos[loop.index0] %}
+                                 {% if existing_photo.filename %}
+                                     <img id="preview-img-{{ loop.index0 }}" src="{{ url_for('inspections.uploaded_file', filename=existing_photo.filename) }}" class="max-w-full h-24 object-cover rounded border border-gray-300" alt="Existing Photo">
+                                 {% endif %}
+                                 {% endif %}
+                             </div>
+                        </div>
+                        <div class="md:w-1/3">
+                            <label for="{{ photo_form.caption.id }}" class="block text-sm font-medium text-gray-700 mb-2">Caption</label>
+                            {{ photo_form.caption(class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent") }}
+                            {% if photo_form.caption.errors %}
+                                <span class="text-red-500 text-sm">{{ photo_form.caption.errors[0] }}</span>
+                            {% endif %}
+                        </div>
+                        <div class="md:w-1/3">
+                            <label for="{{ photo_form.action_required.id }}" class="block text-sm font-medium text-gray-700 mb-2">Action Required</label>
+                            {{ photo_form.action_required(class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent") }}
+                            {% if photo_form.action_required.errors %}
+                                <span class="text-red-500 text-sm">{{ photo_form.action_required.errors[0] }}</span>
+                            {% endif %}
+                        </div>
+                        <div class="md:w-auto mt-8 md:mt-0">
+                            <button type="button" class="btn btn-error btn-remove-photo">Remove</button>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+                <button type="button" id="add-photo" class="btn btn-primary mb-4">Add Photo</button>
+            </div>
+            
+            <!-- Conclusion -->
+            <div class="mb-6">
+                <h2 class="text-xl font-bold mb-4">Conclusion</h2>
+                <div class="mb-4">
+                    <label for="{{ form.conclusion_text.id }}" class="block text-sm font-medium text-gray-700 mb-2">Conclusion Comments</label>
+                    {{ form.conclusion_text(class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent h-32") }}
+                    {% if form.conclusion_text.errors %}
+                        <span class="text-red-500 text-sm">{{ form.conclusion_text.errors[0] }}</span>
+                    {% endif %}
+                </div>
+                <div class="space-y-2">
+                    {% for value, label in form.conclusion_status.choices %}
+                    <div class="flex items-start">
+                        <div class="flex items-center h-5">
+                            {{ form.conclusion_status(class="form-radio h-4 w-4 text-primary-600", value=value) }}
+                        </div>
+                        <div class="ml-3 text-sm">
+                            <label for="{{ form.conclusion_status.id }}" class="ml-2 block text-sm font-medium text-gray-700">{{ label }}</label>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+                {% if form.conclusion_status.errors %}
+                    <span class="text-red-500 text-sm">{{ form.conclusion_status.errors[0] }}</span>
+                {% endif %}
+            </div>
+            
+            <div class="mt-6">
+                {{ form.submit(class="w-full bg-primary-600 hover:bg-primary-700 text-white font-bold py-2 px-4 rounded focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2") }}
+                <a href="{{ url_for('inspections.dashboard') }}" class="ml-2 btn btn-outline">Cancel</a>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Add inspector
+    document.getElementById('add-inspector').addEventListener('click', function() {
+        const container = document.getElementById('inspectors-container');
+        const inspectorCount = container.getElementsByClassName('inspector-entry').length;
+        const newInspector = document.createElement('div');
+        newInspector.className = 'inspector-entry flex flex-col md:flex-row md:items-start md:space-x-4 mb-4 p-4 border border-gray-200 rounded-lg';
+        newInspector.innerHTML = `
+            <div class="md:w-1/2">
+                <label class="block text-sm font-medium text-gray-700 mb-2">Registered User</label>
+                <select name="inspectors-${inspectorCount}-user_id" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent">
+                    <option value="">-- Select User --</option>
+                    {% for u in users %}
+                    <option value="{{ u.id }}">{{ u.full_name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="md:w-1/2">
+                <label class="block text-sm font-medium text-gray-700 mb-2">Free-text Name (for external individuals)</label>
+                <input type="text" name="inspectors-${inspectorCount}-free_text_name" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent">
+            </div>
+            <div class="md:w-auto mt-8 md:mt-0">
+                <button type="button" class="btn btn-error btn-remove-inspector">Remove</button>
+            </div>
+        `;
+        container.appendChild(newInspector);
+        // Add event listener to the new remove button
+        newInspector.querySelector('.btn-remove-inspector').addEventListener('click', function() {
+            container.removeChild(newInspector);
+        });
+    });
+    
+    // Remove inspector
+    document.addEventListener('click', function(e) {
+        if (e.target.classList.contains('btn-remove-inspector')) {
+            const inspectorEntry = e.target.closest('.inspector-entry');
+            if (inspectorEntry) {
+                inspectorEntry.remove();
+            }
+        }
+    });
+    
+    // Add photo
+     document.getElementById('add-photo').addEventListener('click', function() {
+         const container = document.getElementById('photos-container');
+         const photoCount = container.getElementsByClassName('photo-entry').length;
+         const newPhoto = document.createElement('div');
+         newPhoto.className = 'photo-entry flex flex-col md:flex-row md:items-start md:space-x-4 mb-4 p-4 border border-gray-200 rounded-lg';
+         newPhoto.innerHTML = `
+             <div class="md:w-1/3">
+                 <label class="block text-sm font-medium text-gray-700 mb-2">Photo Upload</label>
+                 <input type="file" name="photos-${photoCount}-file" accept="image/*" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent" onchange="previewImage(this, ${photoCount})">
+                 <div id="photo-preview-${photoCount}" class="mt-2">
+                      <img id="preview-img-${photoCount}" class="max-w-full h-24 object-cover rounded border border-gray-300" alt="Preview">
+                  </div>
+             </div>
+             <div class="md:w-1/3">
+                 <label class="block text-sm font-medium text-gray-700 mb-2">Caption</label>
+                 <input type="text" name="photos-${photoCount}-caption" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent">
+             </div>
+             <div class="md:w-1/3">
+                 <label class="block text-sm font-medium text-gray-700 mb-2">Action Required</label>
+                 <select name="photos-${photoCount}-action_required" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent">
+                     <option value="none">No action required</option>
+                     <option value="urgent">Urgent action required</option>
+                     <option value="before_next">Action required before next inspection</option>
+                 </select>
+             </div>
+             <div class="md:w-auto mt-8 md:mt-0">
+                 <button type="button" class="btn btn-error btn-remove-photo">Remove</button>
+             </div>
+         `;
+         container.appendChild(newPhoto);
+         // Add event listener to the new remove button
+         newPhoto.querySelector('.btn-remove-photo').addEventListener('click', function() {
+             container.removeChild(newPhoto);
+         });
+     });
+    
+        // Remove photo
+     document.addEventListener('click', function(e) {
+         if (e.target.classList.contains('btn-remove-photo')) {
+             const photoEntry = e.target.closest('.photo-entry');
+             if (photoEntry) {
+                 photoEntry.remove();
+             }
+         }
+     });
+     
+     // Image preview function
+     function previewImage(input, index) {
+         const previewDiv = document.getElementById('photo-preview-' + index);
+         const previewImg = document.getElementById('preview-img-' + index);
+         
+         if (input.files && input.files[0]) {
+             const reader = new FileReader();
+             
+             reader.onload = function(e) {
+                 previewImg.src = e.target.result;
+                 previewDiv.classList.remove('hidden');
+             }
+             
+             reader.readAsDataURL(input.files[0]);
+         }
+         // If no file selected, we don't hide the div because it might contain an existing photo preview
+     }
+ });
+</script>
+{% endblock %}

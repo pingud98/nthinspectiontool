@@ -1,0 +1,60 @@
+{% extends "base.html" %}
+
+{% block title %}Dashboard - Inspection Reporting{% endblock %}
+
+{% block content %}
+<div class="mb-6">
+    <h1 class="text-2xl font-bold">Inspection Dashboard</h1>
+    <div class="flex items-center justify-between">
+        <a href="{{ url_for('inspections.new_inspection') }}" class="btn btn-primary">New Inspection</a>
+    </div>
+</div>
+
+{% if inspections %}
+<table class="min-w-full divide-y divide-gray-200">
+    <thead class="bg-gray-50">
+        <tr>
+            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Ref #</th>
+            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Installation</th>
+            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Location</th>
+            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date</th>
+            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Version</th>
+            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Conclusion</th>
+            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+        </tr>
+    </thead>
+    <tbody class="bg-white divide-y divide-gray-200">
+        {% for inspection in inspections %}
+        <tr class="hover:bg-gray-50">
+            <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{{ inspection.reference_number }}</td>
+            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">{{ inspection.installation_name }}</td>
+            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">{{ inspection.location }}</td>
+            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">{{ inspection.inspection_date.strftime('%Y-%m-%d') }}</td>
+            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">{{ inspection.version }}</td>
+            <td class="px-6 py-4 whitespace-nowrap text-sm">
+                {% if inspection.conclusion_status == ConclusionStatus.OK %}
+                    <span class="badge badge-success">OK</span>
+                {% elif inspection.conclusion_status == ConclusionStatus.MINOR %}
+                    <span class="badge badge-warning">Minor</span>
+                {% else %}
+                    <span class="badge badge-error">Major</span>
+                {% endif %}
+            </td>
+            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 flex space-x-2">
+                <a href="{{ url_for('inspections.view_inspection', id=inspection.id) }}" class="btn btn-xs btn-outline btn-primary">View</a>
+                {% if inspection.created_by == current_user.id or current_user.is_admin %}
+                <a href="{{ url_for('inspections.edit_inspection', id=inspection.id) }}" class="btn btn-xs btn-outline btn-secondary">Edit</a>
+                <a href="{{ url_for('export.export_pdf', id=inspection.id) }}" class="btn btn-xs btn-outline btn-success">Export PDF</a>
+                {% endif %}
+            </td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+{% else %}
+<div class="text-center py-8">
+    <p class="text-gray-500">No inspections found.</p>
+    <a href="{{ url_for('inspections.new_inspection') }}" class="btn btn-primary mt-4">Create First Inspection</a>
+</div>
+{% endif %}
+{% endblock %}

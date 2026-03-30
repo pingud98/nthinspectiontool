@@ -1,0 +1,104 @@
+{% extends "base.html" %}
+
+{% block title %}Inspection View - Inspection Reporting{% endblock %}
+
+{% block content %}
+<div class="max-w-4xl mx-auto bg-white rounded-lg shadow-md overflow-hidden">
+    <div class="px-6 py-8">
+        <h1 class="text-2xl font-bold text-center mb-6 text-gray-800">Inspection Report</h1>
+        
+        <!-- Basic Information -->
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+            <div>
+                <h2 class="text-xl font-bold mb-2">Installation Information</h2>
+                <p class="text-gray-700"><strong>Installation Name:</strong> {{ inspection.installation_name }}</p>
+                <p class="text-gray-700"><strong>Location:</strong> {{ inspection.location }}</p>
+                <p class="text-gray-700"><strong>Date of Inspection:</strong> {{ inspection.inspection_date.strftime('%Y-%m-%d') }}</p>
+                <p class="text-gray-700"><strong>Reference Number:</strong> {{ inspection.reference_number }}</p>
+                <p class="text-gray-700"><strong>Version:</strong> {{ inspection.version }}</p>
+            </div>
+            <div>
+                <h2 class="text-xl font-bold mb-2">Inspectors</h2>
+                {% if inspection.inspectors %}
+                <ul class="list-disc pl-5 space-y-2">
+                    {% for inspector in inspection.inspectors %}
+                    <li class="text-gray-700">
+                        {% if inspector.user_id %}
+                            {{ inspector.user.full_name }}
+                        {% else %}
+                            {{ inspector.free_text_name }}
+                        {% endif %}
+                    </li>
+                    {% endfor %}
+                </ul>
+                {% else %}
+                <p class="text-gray-500">No inspectors assigned.</p>
+                {% endif %}
+            </div>
+        </div>
+        
+        <!-- Observations -->
+        <div class="mb-6">
+            <h2 class="text-xl font-bold mb-2">Observations</h2>
+            {% if inspection.observations %}
+            <div class="border border-gray-200 rounded-lg p-4 bg-gray-50">
+                <p class="text-gray-700">{{ inspection.observations }}</p>
+            </div>
+            {% else %}
+            <p class="text-gray-500">No observations recorded.</p>
+            {% endif %}
+        </div>
+        
+        <!-- Photos -->
+        {% if inspection.photos %}
+        <div class="mb-6">
+            <h2 class="text-xl font-bold mb-2">Photos</h2>
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                {% for photo in inspection.photos %}
+                <div class="border border-gray-200 rounded-lg overflow-hidden">
+                    {% if photo.filename %}
+                     <img src="{{ url_for('inspections.uploaded_file', filename=photo.filename) }}" alt="Photo {{ loop.index }}" class="w-full h-48 object-cover">
+                     {% else %}
+                    <div class="w-full h-48 bg-gray-200 flex items-center justify-center">
+                        <span class="text-gray-500">No image available</span>
+                    </div>
+                    {% endif %}
+                    <div class="px-4 py-2">
+                        <p class="font-medium mb-1">Caption: {{ photo.caption or 'No caption' }}</p>
+                        <span class="badge {% if photo.action_required == ActionRequired.NONE %}badge-success{% elif photo.action_required == ActionRequired.URGENT %}badge-error{% else %}badge-warning{% endif %}">
+                            {% if photo.action_required == ActionRequired.NONE %}No action required
+                            {% elif photo.action_required == ActionRequired.URGENT %}Urgent action required
+                            {% else %}Action required before next inspection
+                            {% endif %}
+                        </span>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+        {% endif %}
+        
+        <!-- Conclusion -->
+        <div class="mb-6">
+            <h2 class="text-xl font-bold mb-2">Conclusion</h2>
+            <div class="border border-gray-200 rounded-lg p-4 bg-gray-50">
+                <p class="text-gray-700"><strong>Conclusion Comments:</strong></p>
+                <p class="mt-2 text-gray-700">{{ inspection.conclusion_text or 'No conclusion comments provided.' }}</p>
+                <div class="mt-4">
+                    <span class="badge {% if inspection.conclusion_status == ConclusionStatus.OK %}badge-success{% elif inspection.conclusion_status == ConclusionStatus.MINOR %}badge-warning{% else %}badge-error{% endif %} text-lg">
+                        {% if inspection.conclusion_status == ConclusionStatus.OK %}OK for operation in current state
+                        {% elif inspection.conclusion_status == ConclusionStatus.MINOR %}Minor comments — Remedial actions required for continued operation
+                        {% else %}Major comments — Operation suspended until resolution and satisfactory follow-up inspection
+                        {% endif %}
+                    </span>
+                </div>
+            </div>
+        </div>
+        
+        <div class="mt-6 flex justify-center space-x-4">
+            <a href="{{ url_for('inspections.edit_inspection', id=inspection.id) }}" class="btn btn-primary">Edit Report</a>
+            <a href="{{ url_for('export.export_pdf', id=inspection.id) }}" class="btn btn-success">Export as PDF</a>
+        </div>
+    </div>
+</div>
+{% endblock %}

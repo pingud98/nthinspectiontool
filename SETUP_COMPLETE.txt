@@ -1,0 +1,10 @@
+All files have been created according to the plan. The project is ready for setup.
+
+To initialize the application, run:
+cd inspection-app
+python setup.py
+
+Then start the application with:
+python run.py
+
+Access the application at https://localhost:5000

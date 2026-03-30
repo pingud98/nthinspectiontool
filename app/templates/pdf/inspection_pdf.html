@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Inspection Report</title>
+</head>
+<body>
+    <div class="header">
+        <h1>Inspection Reporting System</h1>
+        <h2>Inspection Report</h2>
+    </div>
+    
+    <div class="section">
+        <h2>Inspection Details</h2>
+        <div class="two-column">
+            <div>
+                <p><strong>Installation Name:</strong> {{ inspection.installation_name }}</p>
+                <p><strong>Location:</strong> {{ inspection.location }}</p>
+                <p><strong>Date of Inspection:</strong> {{ inspection.inspection_date.strftime('%Y-%m-%d') }}</p>
+            </div>
+            <div>
+                <p><strong>Reference Number:</strong> {{ inspection.reference_number }}</p>
+                <p><strong>Version:</strong> {{ inspection.version }}</p>
+            </div>
+        </div>
+    </div>
+    
+    <div class="section">
+        <h2>Inspectors</h2>
+        {% if inspection.inspectors %}
+        <ul>
+            {% for inspector in inspection.inspectors %}
+            <li>
+                {% if inspector.user_id %}
+                    {{ inspector.user.full_name }}
+                {% else %}
+                    {{ inspector.free_text_name }}
+                {% endif %}
+            </li>
+            {% endfor %}
+        </ul>
+        {% else %}
+        <p>No inspectors assigned.</p>
+        {% endif %}
+    </div>
+    
+    <div class="section">
+        <h2>Observations</h2>
+        {% if inspection.observations %}
+        <p>{{ inspection.observations }}</p>
+        {% else %}
+        <p>No observations recorded.</p>
+        {% endif %}
+    </div>
+    
+    <div class="section">
+        <h2>Photos</h2>
+        {% if inspection.photos %}
+        <div class="photo-grid">
+            {% for photo in inspection.photos %}
+            <div class="photo-item">
+                {% if photo.filename %}
+                 <img src="{{ url_for('inspections.uploaded_file', filename=photo.filename) }}" alt="Photo {{ loop.index0 + 1 }}">
+                 {% endif %}
+                <div class="photo-caption"><strong>Caption:</strong> {{ photo.caption or 'No caption' }}</div>
+                <div class="photo-action">
+                    <strong>Action Required:</strong>
+                    {% if photo.action_required == ActionRequired.NONE %}No action required
+                    {% elif photo.action_required == ActionRequired.URGENT %}Urgent action required
+                    {% else %}Action required before next inspection
+                    {% endif %}
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+        {% else %}
+        <p>No photos uploaded.</p>
+        {% endif %}
+    </div>
+    
+    <div class="section">
+        <h2>Conclusion</h2>
+        {% if inspection.conclusion_text %}
+        <p><strong>Conclusion Comments:</strong></p>
+        <p>{{ inspection.conclusion_text }}</p>
+        {% else %}
+        <p>No conclusion comments provided.</p>
+        {% endif %}
+        <div class="conclusion-status {% if inspection.conclusion_status == ConclusionStatus.OK %}ok{% elif inspection.conclusion_status == ConclusionStatus.MINOR %}minor{% else %}major{% endif %}">
+            {% if inspection.conclusion_status == ConclusionStatus.OK %}OK for operation in current state
+            {% elif inspection.conclusion_status == ConclusionStatus.MINOR %}Minor comments — Remedial actions required for continued operation
+            {% else %}Major comments — Operation suspended until resolution and satisfactory follow-up inspection
+            {% endif %}
+        </div>
+    </div>
+    
+    <div class="footer">
+        <p>Generated on {{ now().strftime('%Y-%m-%d %H:%M:%S') }}</p>
+    </div>
+</body>
+</html>
