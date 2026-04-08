@@ -60,7 +60,7 @@
             {% for photo in inspection.photos %}
             <div class="photo-item">
                 {% if photo.filename %}
-                 <img src="{{ url_for('inspections.uploaded_file', filename=photo.filename) }}" alt="Photo {{ loop.index0 + 1 }}">
+                 <img src="uploads/{{ photo.filename }}" alt="Photo {{ loop.index0 + 1 }}">
                  {% endif %}
                 <div class="photo-caption"><strong>Caption:</strong> {{ photo.caption or 'No caption' }}</div>
                 <div class="photo-action">

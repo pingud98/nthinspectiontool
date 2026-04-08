@@ -2,6 +2,7 @@
 Unit tests for PDF export functionality.
 """
 import pytest
+from datetime import date
 from app import db
 from app.models import Inspection, User, ConclusionStatus, ActionRequired, Photo
 from app.utils.pdf_generator import generate_pdf
@@ -16,7 +17,7 @@ def test_pdf_generation(app, test_user):
         inspection = Inspection(
             installation_name='Test Installation',
             location='Test Location',
-            inspection_date='2026-01-01',
+            inspection_date=date(2026, 1, 1),
             reference_number='88888',
             observations='Test observations for PDF',
             conclusion_text='Test conclusion for PDF',
@@ -56,7 +57,7 @@ def test_pdf_generation_with_inspectors(app, test_user):
         inspection = Inspection(
             installation_name='Test Installation',
             location='Test Location',
-            inspection_date='2026-01-01',
+            inspection_date=date(2026, 1, 1),
             reference_number='99999',
             observations='Test observations',
             conclusion_text='Test conclusion',

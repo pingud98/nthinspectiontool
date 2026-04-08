@@ -3,6 +3,7 @@ Integration tests for full inspection workflow.
 """
 import pytest
 import io
+from datetime import date
 from app import db
 from app.models import User, Inspection, Photo
 
@@ -10,7 +11,7 @@ from app.models import User, Inspection, Photo
 def test_full_inspection_workflow(auth_client, test_user, app):
     """Test the complete inspection creation workflow."""
     # 1. Access the new inspection form
-    response = auth_client.get('/inspections/new')
+    response = auth_client.get('/new')
     assert response.status_code == 200
     assert b'New Inspection' in response.data
     
@@ -19,7 +20,7 @@ def test_full_inspection_workflow(auth_client, test_user, app):
     test_image.name = "workflow_test.jpg"
     test_image.filename = "workflow_test.jpg"
     
-    response = auth_client.post('/inspections/new', data={
+    response = auth_client.post('/new', data={
         'installation_name': 'Workflow Test Installation',
         'location': 'Workflow Test Location',
         'inspection_date': '2026-01-01',
@@ -43,7 +44,7 @@ def test_full_inspection_workflow(auth_client, test_user, app):
         assert inspection.installation_name == 'Workflow Test Installation'
     
     # 3. View the inspection
-    response = auth_client.get(f'/inspections/{inspection.id}')
+    response = auth_client.get(f'/{inspection.id}')
     assert response.status_code == 200
     assert b'Workflow Test Installation' in response.data
     assert b'Workflow Test Location' in response.data
@@ -52,7 +53,7 @@ def test_full_inspection_workflow(auth_client, test_user, app):
     assert b'Workflow test conclusion' in response.data
     
     # 4. Edit the inspection
-    response = auth_client.post(f'/inspections/{inspection.id}/edit', data={
+    response = auth_client.post(f'/{inspection.id}/edit', data={
         'installation_name': 'Edited Workflow Installation',
         'location': 'Edited Workflow Location',
         'inspection_date': '2026-01-02',
@@ -78,13 +79,13 @@ def test_full_inspection_workflow(auth_client, test_user, app):
         assert inspection.version == 2  # Should be incremented
     
     # 6. Export PDF
-    response = auth_client.get(f'/inspections/{inspection.id}/export/pdf')
+    response = auth_client.get(f'/{inspection.id}/pdf')
     assert response.status_code == 200
     assert response.content_type == 'application/pdf'
     assert len(response.data) > 1000  # Should be a substantial PDF
     
     # 7. Test that we can still access the inspection after PDF export
-    response = auth_client.get(f'/inspections/{inspection.id}')
+    response = auth_client.get(f'/{inspection.id}')
     assert response.status_code == 200
     assert b'Edited Workflow Installation' in response.data
 
@@ -106,7 +107,7 @@ def test_inspection_with_photos_workflow(auth_client, test_user, app):
     # and rely on the unit tests for photo upload functionality
     
     # Create inspection
-    response = auth_client.post('/inspections/new', data={
+    response = auth_client.post('/new', data={
         'installation_name': 'Photo Test Installation',
         'location': 'Photo Test Location',
         'inspection_date': '2026-01-01',

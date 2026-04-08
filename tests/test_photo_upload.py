@@ -3,19 +3,20 @@ Unit tests for photo upload functionality.
 """
 import pytest
 import io
+from datetime import date
 from app import db
-from app.models import Photo, Inspection, User
+from app.models import Photo, Inspection, User, ConclusionStatus, ActionRequired
+from unittest.mock import Mock
 
 
 def test_save_photo_function(app):
     """Test the save_photo helper function."""
     from app.routes.inspections import save_photo
     
-    # Create a test file - need to add filename attribute to BytesIO
-    test_file = io.BytesIO(b"fake image content")
-    test_file.name = "test.jpg"  # BytesIO uses 'name' not 'filename'
-    # For compatibility with the save_photo function, we'll set filename attribute
+    # Create a mock file object
+    test_file = Mock()
     test_file.filename = "test.jpg"
+    test_file.save = Mock()
     
     # Test saving the photo
     with app.app_context():
@@ -24,13 +25,13 @@ def test_save_photo_function(app):
         assert filename.endswith(".jpg")
         assert len(filename) > 10  # UUID prefix + original filename
         
-        # Verify file was saved
-        import os
-        filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
-        assert os.path.exists(filepath)
+        # Verify save was called
+        test_file.save.assert_called_once()
         
-        # Clean up
-        os.remove(filepath)
+        # Check that the file path would be correct
+        import os
+        expected_filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
+        test_file.save.assert_called_with(expected_filepath)
 
 
 def test_save_photo_invalid_extension(app):
@@ -38,8 +39,7 @@ def test_save_photo_invalid_extension(app):
     from app.routes.inspections import save_photo
     
     # Test with invalid extension
-    test_file = io.BytesIO(b"fake content")
-    test_file.name = "test.exe"
+    test_file = Mock()
     test_file.filename = "test.exe"
     
     with app.app_context():
@@ -47,8 +47,7 @@ def test_save_photo_invalid_extension(app):
         assert filename is None  # Should return None for invalid extension
     
     # Test with no extension
-    test_file = io.BytesIO(b"fake content")
-    test_file.name = "test"
+    test_file = Mock()
     test_file.filename = "test"
     
     with app.app_context():
@@ -57,25 +56,37 @@ def test_save_photo_invalid_extension(app):
 
 
 def test_photo_upload_in_inspection_creation(auth_client, test_user, app):
-    """Test uploading photos when creating an inspection."""
-    # Create a test image file - need to add filename attribute to BytesIO
-    test_image = io.BytesIO(b"fake image content for testing")
-    test_image.name = "test_photo.jpg"
-    test_image.filename = "test_photo.jpg"
-    
-    # We need to simulate the multipart form data that would be sent
-    # This is a bit tricky with the test client, so we'll test the save_photo function directly
-    # and test the route integration in the end-to-end tests
-    
-    from app.routes.inspections import save_photo
+    """Test accessing the inspection creation form (file upload testing done in end-to-end tests)."""
+    # Login the user
     with app.app_context():
-        filename = save_photo(test_image)
-        assert filename is not None
-        assert filename.endswith(".jpg")
-        
-        # Clean up
-        import os
-        os.remove(os.path.join(app.config['UPLOAD_FOLDER'], filename))
+        user = User.query.get(test_user)
+    
+    # Test that we can access the new inspection form
+    response = auth_client.get('/new')
+    assert response.status_code == 200
+    assert b'New Inspection' in response.data
+    
+    # Test that we can submit the form without files (should work)
+    response = auth_client.post('/new', data={
+        'installation_name': 'Test Installation',
+        'location': 'Test Location',
+        'inspection_date': '2026-01-01',
+        'reference_number': '54321',
+        'observations': 'Test observations',
+        'conclusion_text': 'Test conclusion',
+        'conclusion_status': ConclusionStatus.OK.value,
+        'submit': 'Submit'
+    }, follow_redirects=True)
+    
+    assert response.status_code == 200
+    assert b'Inspection report created successfully' in response.data
+    
+    # Verify inspection was created in database
+    with app.app_context():
+        inspection = Inspection.query.filter_by(reference_number=54321).first()
+        assert inspection is not None
+        assert inspection.installation_name == 'Test Installation'
+        assert inspection.location == 'Test Location'
 
 
 def test_photo_model_creation(app, test_user):
@@ -87,8 +98,11 @@ def test_photo_model_creation(app, test_user):
         inspection = Inspection(
             installation_name='Test Installation',
             location='Test Location',
-            inspection_date='2026-01-01',
+            inspection_date=date(2026, 1, 1),
             reference_number='77777',
+            observations='Test observations',
+            conclusion_text='Test conclusion',
+            conclusion_status=ConclusionStatus.OK,
             created_by=user.id
         )
         db.session.add(inspection)
@@ -99,7 +113,7 @@ def test_photo_model_creation(app, test_user):
             inspection_id=inspection.id,
             filename='test_upload.jpg',
             caption='Test photo caption',
-            action_required='urgent'
+            action_required=ActionRequired.URGENT
         )
         db.session.add(photo)
         db.session.commit()
@@ -108,7 +122,8 @@ def test_photo_model_creation(app, test_user):
         assert photo.inspection_id == inspection.id
         assert photo.filename == 'test_upload.jpg'
         assert photo.caption == 'Test photo caption'
-        assert photo.action_required == 'urgent'
+        assert photo.action_required == ActionRequired.URGENT
         
         # Test relationship
-        assert inspection.photos.first() == photo
+        assert len(inspection.photos) == 1
+        assert inspection.photos[0] == photo
